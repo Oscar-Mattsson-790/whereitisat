@@ -35,6 +35,12 @@ functions:
       - httpApi:
           path: "/api/tickets/{ticketId}"
           method: PUT
+  seedEvents:
+    handler: functions/seedEvents/index.handler
+    events:
+      - httpApi:
+          path: "/api/seed-events"
+          method: POST
 
 resources:
   Resources:
