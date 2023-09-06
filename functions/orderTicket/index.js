@@ -19,7 +19,18 @@ exports.handler = async (event, context) => {
     }
 
     const ticketId = nanoid();
-    // In a real-world scenario, we would store ticket details in a separate table.
+
+    // Store the ticket in the tickets table
+    await db
+      .put({
+        TableName: "tickets",
+        Item: {
+          ticketId,
+          eventId,
+          verified: false,
+        },
+      })
+      .promise();
 
     return sendResponse(200, {
       success: true,
