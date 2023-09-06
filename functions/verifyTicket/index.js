@@ -1,48 +1,60 @@
-const { sendResponse, sendError } = require("../../responses/index");
+const { sendResponse } = require("../../responses/index");
 const { db } = require("../../services/db");
 
+async function getTicket(ticketId) {
+  const { Item } = await db
+    .get({
+      TableName: "tickets",
+      Key: { ticketId },
+    })
+    .promise();
+
+  return Item;
+}
+
+async function verify(ticketId) {
+  await db
+    .update({
+      TableName: "tickets",
+      Key: { ticketId },
+      UpdateExpression: "SET verified = :verifiedValue",
+      ExpressionAttributeValues: {
+        ":verifiedValue": true,
+      },
+    })
+    .promise();
+}
+
 exports.handler = async (event, context) => {
-  const ticketId = event.pathParameters.ticketId;
+  const ticketId = event.pathParameters && event.pathParameters.ticketId;
+
+  console.log("Received ticketId:", ticketId);
 
   try {
-    const ticketData = await db
-      .get({
-        TableName: "tickets",
-        Key: { ticketId },
-      })
-      .promise();
+    const ticket = await getTicket(ticketId);
 
-    if (!ticketData.Item) {
-      return sendError(404, { success: false, message: "Ticket not found" });
+    if (!ticket) {
+      return sendResponse(404, { success: false, error: "Ticket not found" });
     }
 
-    if (ticketData.Item.verified) {
-      return sendError(400, {
+    if (ticket.verified) {
+      return sendResponse(400, {
         success: false,
-        message: "Ticket already verified",
+        error: "Ticket already verified",
       });
     }
 
-    // Mark ticket as verified
-    await db
-      .update({
-        TableName: "tickets",
-        Key: { ticketId },
-        UpdateExpression: "SET verified = :verifiedValue",
-        ExpressionAttributeValues: {
-          ":verifiedValue": true,
-        },
-      })
-      .promise();
+    await verify(ticketId);
 
     return sendResponse(200, {
       success: true,
       message: "Ticket verified successfully",
     });
   } catch (error) {
-    return sendError(500, {
+    console.log("Error verifying ticket:", error);
+    return sendResponse(500, {
       success: false,
-      message: "Could not verify ticket",
+      error: "Could not verify ticket",
     });
   }
 };

@@ -1,46 +1,56 @@
-const { sendResponse, sendError } = require("../../responses/index");
+const { sendResponse } = require("../../responses/index");
 const { db } = require("../../services/db");
 const { nanoid } = require("nanoid");
+
+async function order(ticketId, eventId) {
+  await db
+    .put({
+      TableName: "tickets",
+      Item: {
+        ticketId: ticketId,
+        eventId: eventId,
+        verified: false,
+      },
+    })
+    .promise();
+}
+
+async function getEvent(eventId) {
+  const { Item } = await db
+    .get({
+      TableName: "events",
+      Key: {
+        id: eventId,
+      },
+    })
+    .promise();
+
+  return Item;
+}
 
 exports.handler = async (event, context) => {
   const eventId = event.pathParameters.eventId;
 
   try {
-    // Check if event exists
-    const eventData = await db
-      .get({
-        TableName: "events",
-        Key: { id: eventId },
-      })
-      .promise();
-
-    if (!eventData.Item) {
-      return sendError(404, { success: false, message: "Event not found" });
-    }
-
     const ticketId = nanoid();
 
-    // Store the ticket in the tickets table
-    await db
-      .put({
-        TableName: "tickets",
-        Item: {
-          ticketId,
-          eventId,
-          verified: false,
-        },
-      })
-      .promise();
+    const eventDetail = await getEvent(eventId);
+
+    if (!eventDetail)
+      return sendResponse(404, { success: false, error: "Event not found" });
+
+    await order(ticketId, eventId);
 
     return sendResponse(200, {
       success: true,
-      event: eventData.Item,
-      ticketId,
+      ticketId: ticketId,
+      event: eventDetail,
     });
   } catch (error) {
-    return sendError(500, {
+    console.log(error);
+    return sendResponse(500, {
       success: false,
-      message: "Could not order ticket",
+      error: "Could not order ticket",
     });
   }
 };
